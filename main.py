@@ -37,7 +37,7 @@ def get_prompt():
     [
       (
         "system",
-        "당신은 유용한 조력자입니다. 모든 질문에 최선을 다해 답변하세요.",
+        "You are a helpful assistant. Answer all questions to the best of your ability.",
       ),
       MessagesPlaceholder(variable_name="messages"),
     ]
