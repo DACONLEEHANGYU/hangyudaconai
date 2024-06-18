@@ -9,6 +9,9 @@ pip install python-dotenv
 pip install notebook
 pip install langchain_community
 pip install langchain-openai
+pip install gpt4all
+pip install chromadb
+pip install langchainhub
 ```
 - config
   - create `.env`
