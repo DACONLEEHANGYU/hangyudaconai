@@ -27,7 +27,7 @@ import fitz
 from utils import print_messages
 
 # ChromaDB 연결
-client = chromadb.HttpClient(host="220.76.216.228", port=8780, settings=Settings(allow_reset=True))
+client = chromadb.HttpClient(host=os.getenv("RND_SERVER"), port=8780, settings=Settings(allow_reset=True))
 print(client.heartbeat())
 
 # Collection 조회 예제
@@ -382,7 +382,7 @@ with col3:
                 # rnd 서버 연결
                 if(st.session_state.pdf_code != ""):
                    
-                    pdf_url = (f"http://220.76.216.228/dflex/{st.session_state.pdf_code}")
+                    pdf_url = f"http://{os.getenv('RND_SERVER')}/dflex/{st.session_state.pdf_code}"
                     with urllib.request.urlopen(pdf_url) as pdf_file:
                         pdf_viewer(pdf_file.read(),pages_to_render=[pdf_page], height=630, width=700)
                             
