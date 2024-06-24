@@ -195,19 +195,6 @@ display: none;
     unsafe_allow_html=True,
 )
 
-with st.sidebar:
-    
-    st.title("DB 카테고리 선택")
-    st.checkbox("표준화", value=True)
-    st.checkbox("데이콘휴가", value=True)
-    st.checkbox("지식재산권", value=True)
-    st.checkbox("데이터기반행정", value=True)
-    st.checkbox("공공데이터 관리지침", value=True)
-    st.checkbox("ICT 기금사업 및 관리지침", value=True)
-    st.checkbox("의료데이터 데이터 3법", value=True)
-    st.checkbox("자치법규업뮤매뉴얼(2022)", value=True)
-    
-  
 # 초기 세션 상태 설정
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -234,28 +221,12 @@ select_collection_name = "dacon11"
 if "messages" not in st.session_state:
      st.session_state["messages"] = []
 
-document_url = "https://lilianweng.github.io/posts/2023-06-23-agent/"
 
 
-@st.cache_resource
-def get_docs(url):
-        loader = WebBaseLoader(
-            web_paths=(url,),
-            bs_kwargs=dict(
-                parse_only=bs4.SoupStrainer(
-                    class_=("post-content", "post-title", "post-header")
-                )
-            ),
-        )
-        return loader.load()
 
 @st.cache_resource
 def get_splitter():
         return RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-
-@st.cache_resource
-def get_split_docs():
-        return get_splitter().split_documents(get_docs(document_url))
 
 @st.cache_resource
 def get_embedding():
@@ -313,71 +284,15 @@ def update_prompt(prompt):
             del st.session_state["suggestion_box"]
 
 
-def load_and_vectorize_pdf(pdf_path):
-    print(f"pdf_path : {pdf_path}")
-    if not os.path.exists(pdf_path):
-        raise FileNotFoundError(f"PDF 파일을 찾을 수 없습니다: {pdf_path}")
-
-    with open(pdf_path, "rb") as file:
-        pdf_reader = PdfReader(file)
-        text_content = ""        
-        for page in pdf_reader.pages:
-            text_content += page.extract_text()
-                                         
-    # 텍스트를 벡터화하는 과정이 여기에 추가되어야 합니다.
-    vectorstore = vectorize_text(text_content)
-    return vectorstore
-
-def vectorize_text(text):
-    # 텍스트 벡터화 과정 구현
-    pass
-
-def extract_page_number(content):    
-    # 'page_content'와 인접한 숫자를 찾는 정규 표현식
-    match = re.search(r'page_content=.+?-(\d+)-', content)
-    if match:
-        return match.group(1)
-    else:
-        return None
-    
-# 파일명
-def extract_filename(content):
-    # 'metadata' 딕셔너리의 'filename' 값을 추출하는 정규 표현식
-    # print(f"전달된 문자열 {content}")    
-    print(f"전달된 객체의 메타데이터 {content.metadata}")        
-    print(f"전달된 객체의 메타데이터 페이지 : {content.metadata["page"]}")        
-    print(f"전달된 객체의 메타데이터 파일이름{content.metadata["source"]}")
-    # print(f"전달된 객체의 메타데이터 파일이름{content.metadata.source}")        
-    match = re.search(r"filename':\s*'([^']+)'", content.page_content)
-    if match:
-        return match.group(1)
-    else:
-        return None
-
-def display_source_cards(sources):
-        st.subheader("출처")
-        cols = st.columns(4)
-        for idx, source in enumerate(sources):
-            with cols[idx % 4]:
-                st.markdown(f"[![{source['title']}]({source['favicon']})]({source['url']})")
-                st.caption(f"{source['title']}")
-                st.caption(f"{source['domain']} · {idx + 1}")
-
-
-# PDF 뷰어를 업데이트하는 로직
-def move_pdf(page_number, pdf_path):    
-    print("move_pdf 함수 호출")
-    # st.session_state.current_page = page_number
-    # st.session_state.current_pdf = pdf_path
-
 def update_pdf(page_number, pdf_path):    
-    print("update_pdf 함수 호출")
+    print(f"update_pdf 함수 호출, path : {pdf_path}, page_number : {page_number}")
+    
     st.session_state.current_page = page_number
     st.session_state.current_pdf = pdf_path
     st.session_state.pdf_code = pdf_path
 
     print_messages(messages, response)    
-
+    create_source_buttons(response)
 
 def create_source_buttons(response):
     if response and 'context' in response:
@@ -394,20 +309,6 @@ def create_source_buttons(response):
                 st.markdown(f"{context.page_content[:20]}...")    
 
 
-# PDF 파일 경로를 매핑합니다.
-pdf_paths = {
-    "카테고리": "./pdf_store/dpdf.pdf",
-    "표준화": "./pdf_store/gongong.pdf",
-    "데이콘휴가": "./pdf_store/daconhuga.pdf",
-    "지식재산권": "./pdf_store/jisik.pdf",
-    "데이터기반행정" : "./pdf_store/jisik.pdf",
-    "관리지침" : "./pdf_store/jisik.pdf",
-    "빅데이터" : "./pdf_store/bigdata.pdf",
-    "ICT" : "./pdf_store/ict.pdf",
-    "의료데이터": "./pdf_store/medical.pdf",
-    "자치법규" : "./pdf_store/jachirow.pdf"
-}
-
 # 선택된 pdf
 select_pdf = './pdf_store/dpdf.pdf'
 result_pdf =''
@@ -423,118 +324,26 @@ with col1:
     with input_container:
           prompt = st.chat_input("메시지를 입력해 주세요.", on_submit=update_prompt, args=(None,))
    
-    # with input_container:
-    #         col1, col2 = st.columns([1, 3])
-    #         with col1:
-    #             # st.selectbox("", options, key="suggestion_box")
-    #             selected_option = st.selectbox("", options, key="suggestion_box")                
-                
-    #             # if selected_option in pdf_paths:
-    #             #         st.session_state.selected_pdf_path = pdf_paths[selected_option]                        
-
-    #             #         print(f"선택된 pdf_path : {pdf_paths[selected_option]}")
-    #             #         pdf_path = pdf_paths[selected_option]
-    #             #         vectorstore = load_and_vectorize_pdf(pdf_path)
-    #             #         select_pdf = pdf_path
-    #             #         chain = get_chain()                        
-    #             # else:
-    #             #         chain = get_chain()
-    #         with col2:
-    #             prompt = st.chat_input("메시지를 입력해 주세요.", on_submit=update_prompt, args=(None,))
-
-   
     if prompt:        
         print_messages(messages, "")
         messages.chat_message("user").write(f"{prompt}")      
         chain = get_chain()
         st.session_state["messages"].append({"role": "user", "content":prompt})
-        #st.session_state["messages"].append(ChatMessage(role="user", content=prompt, height=300))
 
-        # if selected_option in pdf_paths:
-        #                 pdf_path = pdf_paths[selected_option]
-        #                 select_pdf =pdf_path
-        #                 vectorstore = load_and_vectorize_pdf(pdf_path)
-        #                 chain = get_chain()                        
-        # else:
-        #                 chain = get_chain()
 
         response = chain.invoke({"input": prompt})
-        # response = get_chain().invoke({"input": prompt})
-        # response = get_vectors_from_chroma(vectorstore, prompt)
-        # result_pdf = select_pdf
 
         msg = response
         answer = response['answer']
        
         metadata = msg['context'][0].metadata
 
-        
-
         pdf_page = metadata["page"]
         pdf_name = metadata["source"]                
         st.session_state.pdf_code = metadata["data_code"]
 
-        if metadata["data_code"] == "DSET_AI_01":
-            select_pdf = "./pdf_store/DSET_AI_01.pdf"
-        elif metadata["data_code"] == "DSET_AI_02":
-            select_pdf = "./pdf_store/DSET_AI_02.pdf"
-        elif metadata["data_code"] == "DSET_AI_03":
-             select_pdf = "./pdf_store/DSET_AI_03.pdf"
-        elif metadata["data_code"] == "DSET_AI_05":
-             select_pdf = "./pdf_store/DSET_AI_05.pdf"
-        elif metadata["data_code"] == "DSET_AI_06":     
-             select_pdf = "./pdf_store/DSET_AI_06.pdf"         
-        elif metadata["data_code"] == "DSET_AI_07":             
-             select_pdf = "./pdf_store/DSET_AI_07.pdf"         
-        elif metadata["data_code"] == "DSET_AI_08":
-             select_pdf = "./pdf_store/DSET_AI_08.pdf"                      
-        elif metadata["data_code"] == "DSET_AI_09":             
-             select_pdf = "./pdf_store/DSET_AI_09.pdf"                      
-        elif metadata["data_code"] == "DSET_AI_10":             
-             select_pdf = "./pdf_store/DSET_AI_10.pdf"                      
-        # Add more elif statements for other PDF files
-        else:
-            select_pdf = "./pdf_store/dpdf.pdf"
-            
-        # 아이콘과 답변 함께 출력
-        # messages.chat_message("assistant").markdown(icon_html, unsafe_allow_html=True)
-        
         messages.chat_message("assistant").write(response['answer'])        
         create_source_buttons(response)
-        
-        # rag_boxes = messages.columns(len(msg['context']))
-        # for idx, context in enumerate(msg['context']):
-        #  with rag_boxes[idx]:
-        #     st.markdown(
-        #      f"""
-        #         <button class="rag_button" onclick="handleClick()">
-        #           <div class="container">
-        #           <div class="title">{context.metadata["source"][:12]}</div>
-        #           <div class="content">{context.page_content[:20]}</div>
-        #       </div>
-        #     </button>
-        #     <script>
-        #     function handleClick() {{
-        #         console.log(hello);
-        #     }}
-        #     </script>
-        #   """,
-        #   unsafe_allow_html=True
-        # )
-
-        # 변경 코드 
-        # rag_boxes = messages.columns(len(msg['context']))
-        # for idx, context in enumerate(msg['context']):
-        #         with rag_boxes[idx]:
-        #             page_number = context.metadata.get("page", 1)  # 페이지 번호, 기본값 1
-        #             pdf_path = context.metadata.get("data_code", "")  # PDF 파일 경로
-                    
-        #             if st.button(f"{context.metadata["source"][:12]}", key=f"source_button_{idx}",
-        #                          on_click=update_pdf,args=(page_number, pdf_path)):                                
-        #                 pass
-                
-        #             st.markdown(f"{context.page_content[:20]}...")
-                    
 
         st.session_state["messages"].append({"role": "assistant", "content": answer})
 
