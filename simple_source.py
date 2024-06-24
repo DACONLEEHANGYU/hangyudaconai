@@ -26,14 +26,9 @@ import fitz
 
 from utils import print_messages
 
-# 전체 페이지 설정
-#st.set_page_config(layout="wide", page_title="DaconInfinityGPT", page_icon="🔗")
-
 # ChromaDB 연결
 client = chromadb.HttpClient(host="220.76.216.228", port=8780, settings=Settings(allow_reset=True))
 print(client.heartbeat())
-
-# ChromaDB 클라이언트 인스턴스 생성
 
 # Collection 조회 예제
 collections = client.list_collections()
@@ -200,26 +195,8 @@ display: none;
     unsafe_allow_html=True,
 )
 
-# def option_menu(label, options, icons=None, menu_icon=None, default_index=0, styles=None):
-#     if menu_icon:
-#         st.markdown(f'<i class="{menu_icon}"></i>', unsafe_allow_html=True)
-#     choice = st.selectbox(label, options, index=default_index, format_func=lambda x: f'<i class="{icons[options.index(x)]}"></i> {x}' if icons else x, key=label, help="페이지를 선택하세요.", style=styles)
-#     return choice
-
-# with st.sidebar:
-#     choice = option_menu("Menu", ["페이지1", "페이지2", "페이지3"],
-#                          icons=['house', 'kanban', 'bi bi-robot'],
-#                          menu_icon="app-indicator", default_index=0,
-#                          styles={
-#         "container": {"padding": "4!important", "background-color": "#fafafa"},
-#         "icon": {"color": "black", "font-size": "25px"},
-#         "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#fafafa"},
-#         "nav-link-selected": {"background-color": "#08c7b4"},
-#     }
-# )
-
 with st.sidebar:
-    # original_doc = st.file_uploader("Upload PDF", accept_multiple_files=False, type="pdf")        
+    
     st.title("DB 카테고리 선택")
     st.checkbox("표준화", value=True)
     st.checkbox("데이콘휴가", value=True)
@@ -230,21 +207,7 @@ with st.sidebar:
     st.checkbox("의료데이터 데이터 3법", value=True)
     st.checkbox("자치법규업뮤매뉴얼(2022)", value=True)
     
-
-# if original_doc:
-#     with fitz.open(stream=original_doc.getvalue()) as doc:
-#         page_number = st.sidebar.number_input("Page number", min_value=1, max_value=doc.page_count, value=1, step=1)
-#         page = doc.load_page(page_number - 1)
-#         if text_lookup:
-#             areas = page.search_for(text_lookup)
-#             highlight = []
-#             for area in areas:
-#                 highlight.append(area)
-#             page.add_highlight_annots(highlight)
-#         pix = page.get_pixmap(dpi=120).tobytes()
-#         st.image(pix, use_column_width=True)
-
-
+  
 # 초기 세션 상태 설정
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -263,23 +226,11 @@ if "pdf_viewer_key" not in st.session_state:
 
 load_dotenv()
 st.title("Dflex GPT")
-# col1,col2, col3 = st.columns([4, 1, 2.5])
+
 col1, col3 = st.columns([4, 2.5])
 
 select_collection_name = "dacon11" 
 
-# st.markdown(
-#         """
-#        <style>
-#        [data-testid="stSidebar"][aria-expanded="true"]{
-#            min-width: 550px;
-#            max-width: 550px;
-#        }
-#        """,
-#         unsafe_allow_html=True,
-#     )   
-
-        
 if "messages" not in st.session_state:
      st.session_state["messages"] = []
 
@@ -313,11 +264,8 @@ def get_embedding():
 
 @st.cache_resource
 def get_vector_store():
-        #print(Chroma.from_documents(documents=get_split_docs(), embedding=get_embedding()))
-        
-        # return Chroma.from_documents(documents=get_split_docs(), embedding=get_embedding())
+       
         return Chroma(client=client, collection_name=select_collection_name, embedding_function=get_embedding())
-        # return Chroma(client=client, embedding_function=get_embedding())
 
 @st.cache_resource
 def get_retriever(k=4):
@@ -345,39 +293,14 @@ def get_prompt():
 def get_model():
         return ChatUpstage(api_key=os.getenv('UPSTAGE_API_KEY'))
 
-# def format_docs(docs):
-#         return "\n\n".join(doc.page_content for doc in docs)
-
-
-# @st.cache_resource
-# def get_chain(vectorstore):
-#     retriever = get_retriever(vectorstore)
-#     qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
-#     return create_retrieval_chain(retriever, qa_chain)
-
 if "selected_pdf_path" not in st.session_state:
     st.session_state.selected_pdf_path = "./pdf_store/dpdf.pdf"
 
 @st.cache_resource
 def get_chain():
 
-    #   if _selected_pdf_path:
-    #     vectorstore = load_and_vectorize_pdf(_selected_pdf_path)
-    #     retriever = get_retriever()
-    #   else:
-    #         retriever = get_retriever()
-    #         qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
-    #   return create_retrieval_chain(retriever, qa_chain)
-
          qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
          return create_retrieval_chain(get_retriever(), qa_chain)
-
-
-# 크로마 DB 테스트
-# db = Chroma(client=client, collection_name="dacon01",embedding_function=get_embedding())
-# print(f"db : {db.as_retriever(search_type="similarity", search_kwargs={"k": 4})}")
-# qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
-# create_retrieval_chain(db.as_retriever(search_type="similarity", search_kwargs={"k": 4}), qa_chain)
 
 options = ["카테고리", "표준화", "데이콘휴가", "지식재산권", "데이터기반행정", "관리지침", "빅데이터", "ICT", "의료데이터", "자치법규" ]
 
@@ -499,6 +422,7 @@ with col1:
     input_container = st.container()
     with input_container:
           prompt = st.chat_input("메시지를 입력해 주세요.", on_submit=update_prompt, args=(None,))
+   
     # with input_container:
     #         col1, col2 = st.columns([1, 3])
     #         with col1:
@@ -542,22 +466,6 @@ with col1:
         msg = response
         answer = response['answer']
        
-        # 아이콘 HTML 추가
-        # icon_html = """
-        # <div style='display: flex; align-items: center;'>
-        #     <span>{}</span>
-        #     <img src='https://img.icons8.com/ios-filled/50/000000/pdf.png' 
-        #          style='width: 20px; height: 20px; cursor: pointer; margin-left: 10px;' 
-        #          onclick="window.open('pdf_url#page=3', '_blank');" />
-        # </div>
-        # """.format(answer)
-
-        # 답변 출처
-        # messages.write(msg['context'][0])
-        # pdf_page = extract_page_number(msg['context'][0])
-
-        # messages.write(msg)        
-        # messages.write(msg['context'][0])
         metadata = msg['context'][0].metadata
 
         
@@ -630,31 +538,7 @@ with col1:
 
         st.session_state["messages"].append({"role": "assistant", "content": answer})
 
-    # messages = st.container(height=300)
-    # if prompt := st.chat_input("메세지를 입력해주세요"):
-    #     messages.chat_message("user").write(f"{prompt}")
-    #     st.session_state["messages"].append(ChatMessage(role="user", content=prompt, height=300))
-
-    # response = get_chain().invoke({"input": prompt})
-    # with  st.chat_message("assistant"):
-    #          msg = response
-    #          st.write(msg)
-    #          st.session_state["messages"].append(ChatMessage(role="assistant", content=msg['answer']))
-
-    # response = get_chain().invoke({"input": prompt})
-    # msg = response    
-    # st.session_state["messages"].append(ChatMessage(role="assistant", content=msg['answer']))
-
-    # if user_input := st.chat_input("메시지를 입력해 주세요."):
-    #     st.chat_message("user").write(f"{user_input}")
-    #     st.session_state["messages"].append(ChatMessage(role="user", content=user_input, height=300))
-    
-
-    #     response = get_chain().invoke({"input": user_input})
-    #     with st.chat_message("assistant"):
-    #         msg = response
-    #         st.write(msg)
-    #         st.session_state["messages"].append(ChatMessage(role="assistant", content=msg['answer']))
+  
 
 with col3:    
     with st.container(border=True):     
@@ -681,41 +565,20 @@ with col3:
 
         # rnd -> pdf    
         pdf_url = "./pdf_store/dpdf.pdf"        
-        # response = requests.get(pdf_url)
-        # if response.status_code == 200:
-        #         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-        #             temp_file.write(response.content)
-        #             temp_file_path = temp_file.name
-        #             pdf_viewer(temp_file_path, height=595, width=600)
-        # else:
-        #         st.error("PDF를 불러올 수 없습니다.")
+  
 
         pdf_main_container = st.container()
         with pdf_main_container:
                 
                 # rnd 서버 연결
                 if(st.session_state.pdf_code != ""):
-                    # print(f"metadata : {metadata["data_code"]}")
-                    # pdf_url = (f"http://220.76.216.228/dflex/{metadata["data_code"]}")
+                   
                     pdf_url = (f"http://220.76.216.228/dflex/{st.session_state.pdf_code}")
                     with urllib.request.urlopen(pdf_url) as pdf_file:
                         pdf_viewer(pdf_file.read(),pages_to_render=[pdf_page], height=630, width=700)
-        
-                # pdf_url = "./pdf_store/dpdf.pdf"
-                
-                
-                    # pdf_viewer(pdf_url, pages_to_render=[pdf_page], height=630, width=700)
-                    # reader = PdfReader("./pdf_store/DSET_AI_02.pdf")
-                    # page = reader.pages[0]
-                    # writer = PdfWriter()
-                    # writer.add_page(page)
-                    # open("./pdf_store/DSET_AI_02.pdf", "wb")
-                    # PdfWriter().write_pdf(pdf_url, select_pdf, pdf_page)                    
+                            
                 else:
-                    # reader = PdfReader("./pdf_store/DSET_AI_02.pdf")
-                    # page = reader.pages[0]
-                    # open("./pdf_store/DSET_AI_02.pdf", "wb")
-                    # PdfWriter().write_pdf(pdf_url, select_pdf, pdf_page)
+                   
                     pass
                     pdf_viewer(pdf_url, height=630, width=700)                
                       
