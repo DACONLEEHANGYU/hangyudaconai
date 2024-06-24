@@ -24,6 +24,18 @@ st.markdown(
   <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
   
+  .st-emotion-cache-7ym5gk{
+    margin-left: 14px;
+  }
+  .st-bt{
+    background-color: white;
+  }
+  .st-emotion-cache-1kv1lyy{
+    align-items: flex-end;
+  }
+  [data-testid="StyledFullScreenButton"]{
+     visibility: hidden;
+  }
   .noto-sans-kr-<uniquifier> {
   font-family: "Noto Sans KR", sans-serif;
   font-optical-sizing: auto;
@@ -85,7 +97,7 @@ st.markdown(
   }
   .st-emotion-cache-1jicfl2{
     background-color: white;
-    border-radius: 30px;    
+    #border-radius: 30px;    
     padding-right: 6rem;
     padding-left: 6rem;
     padding-top: 0;
@@ -181,6 +193,14 @@ st.markdown(
   """,
   unsafe_allow_html=True,
 )
+
+
+with st.sidebar:
+    st.title("DB 카테고리 선택")
+    st.checkbox("메시지", True)
+    st.checkbox("PDF", True)
+
+   
 
 # 초기 세션 상태 설정
 if "chat_history" not in st.session_state:
@@ -280,8 +300,23 @@ def update_category():
         select_collection_name = "dacon11"
     elif selected_option == "지식재산권":
         select_collection_name = "DSET_AI_01"
+    elif selected_option == "표준화":
+        select_collection_name = "DSET_AI_02"
     elif selected_option == "의료데이터":    
          select_collection_name = "DSET_AI_03"    
+    elif selected_option == "데이터기반행정":
+         select_collection_name = "DSET_AI_05"      
+    elif selected_option == "관리지침":
+        select_collection_name = "DSET_AI_06"
+    elif selected_option == "데이터 3법 개정안":
+        select_collection_name = "DSET_AI_07"
+    elif selected_option == "자치법규":
+        select_collection_name = "DSET_AI_08"
+    elif selected_option == "ICT":
+        select_collection_name = "DSET_AI_09"
+    elif selected_option == "빅데이터":
+        select_collection_name = "DSET_AI_10"                                           
+
     # 다른 카테고리에 대한 처리도 추가
        
     st.session_state.collection_name = select_collection_name
@@ -291,7 +326,7 @@ def update_category():
 
 chain = get_chain()
 
-options = ["카테고리", "표준화", "데이콘휴가", "지식재산권", "데이터기반행정", "관리지침", "빅데이터", "ICT", "의료데이터", "자치법규" ]
+options = ["전체", "지식재산권", "표준화", "의료데이터", "데이터기반행정", "관리지침", "데이터 3법 개정안", "자치법규", "ICT", "빅데이터" ]
 
 with chat_column:
   with st.container(border=True):

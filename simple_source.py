@@ -287,12 +287,12 @@ def get_chain():
          qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
          return create_retrieval_chain(get_retriever(), qa_chain)
 
-options = ["카테고리", "표준화", "데이콘휴가", "지식재산권", "데이터기반행정", "관리지침", "빅데이터", "ICT", "의료데이터", "자치법규" ]
+options = ["전체", "지식재산권", "표준화", "데이터기반행정", "관리지침", "빅데이터", "ICT", "의료데이터", "자치법규" ]
 
 def update_prompt(prompt):
     global options  # 전역 변수 사용
     if prompt == "/":
-        st.session_state["suggestion_box"] = st.selectbox("옵션을 선택하세요:", options, label_visibility="hidden", key="suggestion_box")
+        st.session_state["suggestion_box"] = st.selectbox("", options, label_visibility="hidden", key="suggestion_box")
     else:
         if "suggestion_box" in st.session_state:
             del st.session_state["suggestion_box"]
