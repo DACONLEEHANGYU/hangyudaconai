@@ -1,7 +1,9 @@
 import os
 import bs4
 import re
+import time
 import streamlit as st
+import streamlit.components.v1 as components
 import urllib.request
 from streamlit_pdf_viewer import pdf_viewer
 from dotenv import load_dotenv
@@ -27,11 +29,8 @@ import fitz
 from utils import print_messages
 
 # ChromaDB 연결
-client = chromadb.HttpClient(host=os.getenv('RND_SERVER'), port=8780, settings=Settings(allow_reset=True))
-print(client.heartbeat())
 
-# Collection 조회 예제
-collections = client.list_collections()
+
 
 st.set_page_config(layout="wide", page_title="DaconInfinityGPT", page_icon="🔗")
 
@@ -39,6 +38,17 @@ st.markdown(
     """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
+
+.st-ck{
+    background-color: rgba(0, 0, 0, 0);    
+}
+.st-da{
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.st-emotion-cache-1h6yrjv{
+    background-color: white;    
+}
 
 .noto-sans-kr-<uniquifier> {
   font-family: "Noto Sans KR", sans-serif;
@@ -69,6 +79,7 @@ st.markdown(
 }
 .st-emotion-cache-4oy321{
     background-color: #FFBD45;
+    padding: 1rem 1rem 1rem 1rem;
 }
 .st-emotion-cache-bho8sy{
     background-color: #201c51;
@@ -208,7 +219,9 @@ if "pdf_code" not in st.session_state:
 # PDF 뷰어 컴포넌트를 위한 키를 생성
 if "pdf_viewer_key" not in st.session_state:
     st.session_state.pdf_viewer_key = 0    
-     
+
+if "collection_name" not in st.session_state:
+     st.session_state.collection_name = "dacon11"    
 
 
 load_dotenv()
@@ -216,12 +229,10 @@ st.title("Dflex GPT")
 
 col1, col3 = st.columns([4, 2.5])
 
-select_collection_name = "dacon11" 
+select_collection_name = "dacon11"
 
 if "messages" not in st.session_state:
      st.session_state["messages"] = []
-
-
 
 
 @st.cache_resource
@@ -233,14 +244,17 @@ def get_embedding():
         model = "solar-embedding-1-large"
         return UpstageEmbeddings(api_key=os.getenv('UPSTAGE_API_KEY'), model=model)
 
-@st.cache_resource
-def get_vector_store():
-       
-        return Chroma(client=client, collection_name=select_collection_name, embedding_function=get_embedding())
 
-@st.cache_resource
+def get_vector_store(collection_name):
+
+        client = chromadb.HttpClient(host=os.getenv('RND_SERVER'), port=8780, settings=Settings(allow_reset=True))        
+        print(f"get_vector_store 함수 호출, {collection_name}")
+
+        return Chroma(client=client, collection_name=collection_name, embedding_function=get_embedding())
+
+
 def get_retriever(k=4):
-        return get_vector_store().as_retriever(search_type="similarity", search_kwargs={"k": k})
+        return get_vector_store(st.session_state.collection_name).as_retriever(search_type="similarity", search_kwargs={"k": k})
 
 @st.cache_resource
 def get_prompt():
@@ -267,7 +281,7 @@ def get_model():
 if "selected_pdf_path" not in st.session_state:
     st.session_state.selected_pdf_path = "./pdf_store/dpdf.pdf"
 
-@st.cache_resource
+
 def get_chain():
 
          qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
@@ -283,6 +297,21 @@ def update_prompt(prompt):
         if "suggestion_box" in st.session_state:
             del st.session_state["suggestion_box"]
 
+def update_category():
+    global select_collection_name
+    selected_option = st.session_state["suggestion_box"]
+    
+    if selected_option == "카테고리":
+        select_collection_name = "dacon11"
+    elif selected_option == "지식재산권":
+        select_collection_name = "DSET_AI_01"
+    elif selected_option == "의료데이터":    
+         select_collection_name = "DSET_AI_03"    
+    # 다른 카테고리에 대한 처리도 추가
+       
+    st.session_state.collection_name = select_collection_name
+    # 벡터 스토어 재생성
+    st.session_state.vector_store = get_vector_store(select_collection_name)
 
 def update_pdf(page_number, pdf_path):    
     print(f"update_pdf 함수 호출, path : {pdf_path}, page_number : {page_number}")
@@ -294,20 +323,22 @@ def update_pdf(page_number, pdf_path):
     print_messages(messages, response)    
     create_source_buttons(response)
 
-def create_source_buttons(response):
-    if response and 'context' in response:
+def create_source_buttons(response):    
+    if response and 'context' in response:        
         rag_boxes = messages.columns(len(response['context']))
         for idx, context in enumerate(response['context']):
             with rag_boxes[idx]:
                 page_number = context.metadata.get("page", 1)
                 pdf_path = context.metadata.get("data_code", "")
                 
-                if st.button(f"{context.metadata['source'][:12]}", key=f"source_button_{idx}",
-                             on_click=update_pdf, args=(page_number, pdf_path)):
+                if st.button(f"{context.metadata['source'][:30]}", key=f"source_button_{idx}",
+                             on_click=update_pdf, args=(page_number, pdf_path), help=context.metadata['source']):
                     pass
             
-                st.markdown(f"{context.page_content[:20]}...")    
+                st.markdown(f"{context.page_content[:20]}...")                    
+        
 
+# pdf 뷰어
 
 # 선택된 pdf
 select_pdf = './pdf_store/dpdf.pdf'
@@ -318,12 +349,18 @@ pdf_name =''
 
 with col1:
     with st.container(border=True):
-        messages = st.container(height=640)
-
-    input_container = st.container()
+     messages = st.container(height=640)
+     input_container = st.container()
+    
     with input_container:
+          col1, col2 = st.columns([1, 3])
+
+    with col1:
+        st.selectbox("옵션을 선택하세요:", options, key="suggestion_box", on_change=update_category)
+
+    with col2:
           prompt = st.chat_input("메시지를 입력해 주세요.", on_submit=update_prompt, args=(None,))
-   
+                
     if prompt:        
         print_messages(messages, "")
         messages.chat_message("user").write(f"{prompt}")      
@@ -337,6 +374,7 @@ with col1:
         answer = response['answer']
        
         metadata = msg['context'][0].metadata
+        st.write(msg)
 
         pdf_page = metadata["page"]
         pdf_name = metadata["source"]                
