@@ -27,7 +27,7 @@ import fitz
 from utils import print_messages
 
 # ChromaDB 연결
-client = chromadb.HttpClient(host=os.getenv("RND_SERVER"), port=8780, settings=Settings(allow_reset=True))
+client = chromadb.HttpClient(host=os.getenv('RND_SERVER'), port=8780, settings=Settings(allow_reset=True))
 print(client.heartbeat())
 
 # Collection 조회 예제
@@ -340,7 +340,7 @@ with col1:
 
         pdf_page = metadata["page"]
         pdf_name = metadata["source"]                
-        st.session_state.pdf_code = metadata["data_code"]
+        st.session_state.pdf_code = metadata["data_code"]        
 
         messages.chat_message("assistant").write(response['answer'])        
         create_source_buttons(response)
@@ -375,7 +375,6 @@ with col3:
         # rnd -> pdf    
         pdf_url = "./pdf_store/dpdf.pdf"        
   
-
         pdf_main_container = st.container()
         with pdf_main_container:
                 
@@ -384,7 +383,7 @@ with col3:
                    
                     pdf_url = f"http://{os.getenv('RND_SERVER')}/dflex/{st.session_state.pdf_code}"
                     with urllib.request.urlopen(pdf_url) as pdf_file:
-                        pdf_viewer(pdf_file.read(),pages_to_render=[pdf_page], height=630, width=700)
+                        pdf_viewer(pdf_file.read(),pages_to_render=[st.session_state.current_page], height=630, width=700)
                             
                 else:
                    
