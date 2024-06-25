@@ -8,6 +8,8 @@ from chromadb.config import Settings
 from dotenv import load_dotenv
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
+from langchain.retrievers import BM25Retriever, EnsembleRetriever
+from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -195,12 +197,17 @@ st.markdown(
 )
 
 
-# with st.sidebar:
-#     st.title("DB 카테고리 선택")
-#     st.checkbox("메시지", True)
-#     st.checkbox("PDF", True)
-
-   
+with st.sidebar:
+  st.title("DB 카테고리 선택")
+  st.checkbox("지식재산권",value=True, key="DSET_AI_01_check")
+  st.checkbox("표준화",value=True, key="DSET_AI_02_check")
+  st.checkbox("의료데이터",value=True, key="DSET_AI_03_check")
+  st.checkbox("데이터기반행정",value=True, key="DSET_AI_05_check")
+  st.checkbox("관리지침",value=True, key="DSET_AI_06_check")
+  st.checkbox("데이터 3법 개정안",value=True, key="DSET_AI_07_check")
+  st.checkbox("자치법규",value=True, key="DSET_AI_08_check")
+  st.checkbox("ICT",value=True, key="DSET_AI_09_check")
+  st.checkbox("빅데이터",value=True, key="DSET_AI_10_check")
 
 # 초기 세션 상태 설정
 if "chat_history" not in st.session_state:
@@ -229,6 +236,28 @@ if "current" not in st.session_state:
   st.session_state['current'] = {}
 
 
+def get_selected_collections():
+    selected_collections = []
+    if st.session_state["DSET_AI_01_check"]:
+        selected_collections.append("DSET_AI_01")
+    if st.session_state["DSET_AI_02_check"]:
+        selected_collections.append("DSET_AI_02")
+    if st.session_state["DSET_AI_03_check"]:
+        selected_collections.append("DSET_AI_03")
+    if st.session_state["DSET_AI_05_check"]:
+        selected_collections.append("DSET_AI_05")
+    if st.session_state["DSET_AI_06_check"]:
+        selected_collections.append("DSET_AI_06")
+    if st.session_state["DSET_AI_07_check"]:
+         selected_collections.append("DSET_AI_07")
+    if st.session_state["DSET_AI_08_check"]:
+          selected_collections.append("DSET_AI_08")
+    if st.session_state["DSET_AI_09_check"]:
+          selected_collections.append("DSET_AI_09")
+    if st.session_state["DSET_AI_10_check"]:
+          selected_collections.append("DSET_AI_10")                                                 
+    return selected_collections if selected_collections else ["dacon11"]
+
 @st.cache_resource
 def get_splitter():
   return RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
@@ -245,12 +274,24 @@ def get_vector_store(collection_name):
   client = chromadb.HttpClient(host=os.getenv('RND_SERVER'), port=8780, settings=Settings(allow_reset=True))
   print(client.heartbeat())
   print(f"collection_name: {collection_name}")
+
   return Chroma(client=client, collection_name=collection_name, embedding_function=get_embedding())
 
 
 
-def get_retriever(k=4):
-  return get_vector_store(st.session_state.collection_name).as_retriever(search_type='similarity', search_kwargs={'k': k})
+def get_retriever(k=2):
+    selected_collections = get_selected_collections()
+    
+    if len(selected_collections) == 1:
+        return get_vector_store(selected_collections[0]).as_retriever(search_type='similarity', search_kwargs={'k': k})
+    else:
+        retrievers = [
+            get_vector_store(collection).as_retriever(search_type='similarity', search_kwargs={'k': k})
+            for collection in selected_collections
+        ]
+        weights = [1.0 / len(retrievers)] * len(retrievers)
+        return EnsembleRetriever(retrievers=retrievers, weights=weights)      
+
 
 
 @st.cache_resource
@@ -282,8 +323,9 @@ if 'selected_pdf_path' not in st.session_state:
 
 
 def get_chain():
+  retriever = get_retriever()
   qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
-  return create_retrieval_chain(get_retriever(), qa_chain)
+  return create_retrieval_chain(retriever, qa_chain)
 
 
 def update_pdf(page_number, code, source):
