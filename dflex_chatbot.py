@@ -8,8 +8,8 @@ from chromadb.config import Settings
 from dotenv import load_dotenv
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
-from langchain.retrievers import BM25Retriever, EnsembleRetriever
-from langchain.retrievers.multi_query import MultiQueryRetriever
+from langchain.retrievers import EnsembleRetriever
+
 
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -18,6 +18,7 @@ from langchain_upstage import ChatUpstage
 from langchain_upstage import UpstageEmbeddings
 from streamlit_pdf_viewer import pdf_viewer
 
+from retriever.multi_retriever import MultiRetriever
 from qa_utils import print_messages, create_source_boxes
 
 if 'sbstate' not in st.session_state:
@@ -82,10 +83,50 @@ st.markdown(
     border: 2px solid #e5dcdc;
     border-radius: 10px;
   }
+  .st-emotion-cache-ouq56e{
+    width: 208.938px;
+    position: relative;
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    border: 1px solid;
+    border-radius: 10px;
+    gap: 0.5rem;
+  }
+  .st-emotion-cache-1anz8uz{
+    width: 208.938px;
+    position: relative;
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    border: 1px solid;
+    border-radius: 10px;
+    gap: 0.5rem;
+  }
+  .st-emotion-cache-12hhi06{
+    width: 208.938px;
+    position: relative;
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    border: 1px solid;
+    border-radius: 10px;
+    gap: 0.5rem;
+  }
+  .st-emotion-cache-phzz4j{
+    width: 208.938px;
+    position: relative;
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    border: 1px solid;
+    border-radius: 10px;
+    gap: 0.5rem;
+  }
   .st-emotion-cache-6o6feu{
     background-image: url('./pdf_store/dacon_logo.jpg');
     background-color: white;
-    border: none;
+    border: 1px solid #e5dcdc;
   }
  
   .st-emotion-cache-bome3c{
@@ -353,6 +394,8 @@ def get_selected_collections():
           selected_collections.append("DSET_AI_10")                                                 
     return selected_collections if selected_collections else ["dacon11"]
 
+
+
 @st.cache_resource
 def get_splitter():
   return RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
@@ -373,8 +416,6 @@ def get_vector_store(collection_name):
   return Chroma(client=client, collection_name=collection_name, embedding_function=get_embedding())
 
 
-
-
 def get_retriever(k=4):
     selected_collections = get_selected_collections()
     
@@ -389,37 +430,57 @@ def get_retriever(k=4):
         weights = [1.0 / len(retrievers)] * len(retrievers)
         return EnsembleRetriever(retrievers=retrievers, weights=weights)      
 
+def get_vector_stores():
+  return [get_vector_store(collection) for collection in get_selected_collections()]
 
+def get_multi_retriever():
+  return MultiRetriever(vector_stores=get_vector_stores())
+
+
+# @st.cache_resource
+# def get_prompt():
+#   system_prompt = (
+#     "You are an assistant for question-answering tasks. "
+#     "Use the following pieces of retrieved context to answer "
+#     "the question. If you don't know the answer, say that you "
+#     "don't know. Use three sentences maximum and keep the "
+#     "answer concise. If you cannot find the answer in the provided context, say 'I don't know.'"
+#     "\n\n"
+#     "{context}"
+#   )
+#   return ChatPromptTemplate.from_messages(
+#     [
+#       ('system', system_prompt),
+#       ('human', '{input}'),
+#     ]
+#   )
 
 @st.cache_resource
 def get_prompt():
-  system_prompt = (
-    # "You are an assistant for question-answering tasks. "
-    # "Use the following pieces of retrieved context to answer "
-    # "the question. If you don't know the answer, say that you "
-    # "don't know. Use three sentences maximum and keep the "
-    # "answer concise."
-    # "\n\n"
-    # "{context}"
-    "You are an assistant for question-answering tasks. "
-    "Use the following pieces of retrieved context to answer "
-    "the question. If you don't know the answer, say that you "
-    "don't know. Use three sentences maximum and keep the "
-    "answer concise. If you cannot find the answer in the provided context, say 'I don't know.'"
-    "\n\n"
-    "{context}"
-  )
-  return ChatPromptTemplate.from_messages(
-    [
-      ('system', system_prompt),
-      ('human', '{input}'),
-    ]
-  )
+    system_prompt = (
+        "You are an assistant for question-answering tasks. "
+        "Your responses should be based solely on the provided context. "
+        "If the necessary information is not present in the context, "
+        "or if the context is empty, always respond with 'I don't have enough information to answer that question.' "
+        "When you do have relevant information in the context, use it to answer "
+        "the question concisely, using no more than three sentences. "
+        "Be direct and to the point in your responses.\n\n"
+        "Context: {context}\n\n"
+        "Question: {input}\n\n"
+        "Answer: "
+    )
+    return ChatPromptTemplate.from_messages(
+        [
+            ('system', system_prompt),
+            ('human', '{input}'),
+        ]
+    )
 
 
 @st.cache_resource
 def get_model():
   return ChatUpstage(api_key=os.getenv('UPSTAGE_API_KEY'))
+# return ChatOpenAI(temperature=0, model_name='gpt-3.5-turbo')
 
 
 if 'selected_pdf_path' not in st.session_state:
@@ -427,7 +488,7 @@ if 'selected_pdf_path' not in st.session_state:
 
 
 def get_chain():
-  retriever = get_retriever()  
+  retriever = get_multi_retriever()  
   qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
   return create_retrieval_chain(retriever, qa_chain)
 
@@ -478,39 +539,30 @@ with chat_column:
   message_container = st.container(height=770)
   print_messages(message_container, show_pdf=update_pdf)
 
-  with st.container():   
-        if prompt := st.chat_input("메시지를 입력해 주세요.", args=(None,)):
-            message_container.chat_message("user").write(f"{prompt}")
-            st.session_state["messages"].append({"message":{"role": "user", "content": prompt}})
+  with st.container():
+    if prompt := st.chat_input("메시지를 입력해 주세요.", args=(None,)):
+       message_container.chat_message("user").write(f"{prompt}")
+       st.session_state["messages"].append({"message":{"role": "user", "content": prompt}})
 
-            try:
-                response = chain.invoke({"input": prompt})
-                answer = response.get('answer', "죄송합니다. 답변을 생성하는 데 문제가 발생했습니다.")
-      
-                if 'context' in response and response['context']:
-                    metadata = response['context'][0].metadata
-                    st.session_state['current']['page'] = metadata.get("page")
-                    st.session_state['current']['source'] = metadata.get("source")
-                    st.session_state['current']['code'] = metadata.get("data_code")
-                else:
-                    print("No context or metadata found in the response")
-                    st.session_state['current']['page'] = 1
-                    st.session_state['current']['source'] = ""
-                    st.session_state['current']['code'] = ""
+       response = chain.invoke({'input': prompt})
+       answer = response['answer']
+       metadata = response['context'][0].metadata
 
-                st.write(response)  # 디버깅을 위해 전체 응답 출력
+       st.session_state['current']['page'] = metadata["page"]
+       st.session_state['current']['source'] = metadata["source"]
+       st.session_state['current']['code'] = metadata["data_code"]
 
-                message_container.chat_message("assistant").write(answer)
-                if 'context' in response:
-                    create_source_boxes(message_container, response['context'], update_pdf)
+       message_container.chat_message("assistant").write(answer)
+       if 'context' in response:
+        create_source_boxes(message_container, response['context'], update_pdf)
 
-                st.session_state["messages"].append({
-                    "message": {"role": "assistant", "content": answer},
-                    "context": response.get('context', [])
-                })
-            except Exception as e:
-                print(f"An error occurred: {str(e)}")
-                
+       st.session_state["messages"].append({
+        "message":{
+          "role": "assistant", "content": answer
+        },
+        "context": response['context']
+      })   
+            
 with pdf_column:
   with st.container(border=True) as pdf_name_container:
     with st.container():
