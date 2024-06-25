@@ -10,6 +10,7 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
 from langchain.retrievers import BM25Retriever, EnsembleRetriever
 from langchain.retrievers.multi_query import MultiQueryRetriever
+
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -19,7 +20,10 @@ from streamlit_pdf_viewer import pdf_viewer
 
 from qa_utils import print_messages, create_source_boxes
 
-st.set_page_config(layout="wide", page_title="DaconInfinityGPT", page_icon="🔗")
+if 'sbstate' not in st.session_state:
+    st.session_state.sbstate = 'collapsed'
+
+st.set_page_config(layout="wide", page_title="DaconInfinityGPT", page_icon="🔗", initial_sidebar_state=st.session_state.sbstate)
 
 st.markdown(
   """
@@ -38,6 +42,8 @@ st.markdown(
   [data-testid="StyledFullScreenButton"]{
      visibility: hidden;
   }
+  [data-testid="stSidebar"][aria-expanded="false"]{
+  }
   .noto-sans-kr-<uniquifier> {
   font-family: "Noto Sans KR", sans-serif;
   font-optical-sizing: auto;
@@ -49,6 +55,9 @@ st.markdown(
 }
   .st-emotion-cache-r421ms < .st-emotion-cache-1wmy9hl {
     background-color: #F0F0F0; /* 원하는 배경색 hex 코드 */
+  }
+  .st-emotion-cache-s1k4sy{
+    box-shadow: 5px 5px 2px #d1c5b6;
   }
   .reportview-container .markdown-text-container {
     font-family: monospace;    
@@ -272,23 +281,25 @@ def get_embedding():
 
 def get_vector_store(collection_name):
   client = chromadb.HttpClient(host=os.getenv('RND_SERVER'), port=8780, settings=Settings(allow_reset=True))
-  print(client.heartbeat())
-  print(f"collection_name: {collection_name}")
+  # print(client.heartbeat())
+  # print(f"collection_name: {collection_name}")
 
   return Chroma(client=client, collection_name=collection_name, embedding_function=get_embedding())
 
 
 
-def get_retriever(k=2):
+
+def get_retriever(k=4):
     selected_collections = get_selected_collections()
     
     if len(selected_collections) == 1:
-        return get_vector_store(selected_collections[0]).as_retriever(search_type='similarity', search_kwargs={'k': k})
+        return get_vector_store(selected_collections[0]).as_retriever(search_type='similarity_score_threshold', search_kwargs={'k': k, "score_threshold" : 0.1})
     else:
         retrievers = [
-            get_vector_store(collection).as_retriever(search_type='similarity', search_kwargs={'k': k})
+            get_vector_store(collection).as_retriever(search_type='similarity_score_threshold', search_kwargs={'k': k, "score_threshold" : 0.1})
             for collection in selected_collections
         ]
+        print(f"retrievers: {len(retrievers)}")
         weights = [1.0 / len(retrievers)] * len(retrievers)
         return EnsembleRetriever(retrievers=retrievers, weights=weights)      
 
@@ -297,11 +308,18 @@ def get_retriever(k=2):
 @st.cache_resource
 def get_prompt():
   system_prompt = (
+    # "You are an assistant for question-answering tasks. "
+    # "Use the following pieces of retrieved context to answer "
+    # "the question. If you don't know the answer, say that you "
+    # "don't know. Use three sentences maximum and keep the "
+    # "answer concise."
+    # "\n\n"
+    # "{context}"
     "You are an assistant for question-answering tasks. "
     "Use the following pieces of retrieved context to answer "
     "the question. If you don't know the answer, say that you "
     "don't know. Use three sentences maximum and keep the "
-    "answer concise."
+    "answer concise. If you cannot find the answer in the provided context, say 'I don't know.'"
     "\n\n"
     "{context}"
   )
@@ -323,7 +341,7 @@ if 'selected_pdf_path' not in st.session_state:
 
 
 def get_chain():
-  retriever = get_retriever()
+  retriever = get_retriever()  
   qa_chain = create_stuff_documents_chain(get_model(), get_prompt())
   return create_retrieval_chain(retriever, qa_chain)
 
@@ -375,20 +393,15 @@ with chat_column:
     message_container = st.container(height=640)
     print_messages(message_container, show_pdf=update_pdf)
 
-  with st.container():
-      category_column, input_column = st.columns([1, 4])
-
-  with category_column:
-      st.selectbox("옵션을 선택하세요:", options, key="suggestion_box", on_change=update_category)
-
-  with input_column:      
+  with st.container():   
     if prompt := st.chat_input("메시지를 입력해 주세요.", args=(None,)):
       message_container.chat_message("user").write(f"{prompt}")
       st.session_state["messages"].append({"message":{"role": "user", "content": prompt}})
 
       response = chain.invoke({"input": prompt})
       answer = response['answer']
-      metadata = response['context'][0].metadata
+      metadata = response['context'][0].metadata      
+
       st.write(response)
 
       st.session_state['current']['page'] = metadata["page"]

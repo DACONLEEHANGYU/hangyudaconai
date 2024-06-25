@@ -19,10 +19,18 @@ def create_source_card(context, rag_box, show_pdf, source_length=15, content_len
     st.markdown(f"{context.page_content[:content_length]}...")
 
 
+# def create_source_boxes(container, contexts, show_pdf):
+#   rag_boxes = container.columns(len(contexts))
+#   for idx, context in enumerate(contexts):
+#     create_source_card(context, rag_boxes[idx], show_pdf)
+
 def create_source_boxes(container, contexts, show_pdf):
-  rag_boxes = container.columns(len(contexts))
-  for idx, context in enumerate(contexts):
-    create_source_card(context, rag_boxes[idx], show_pdf)
+  # 최대 4개의 박스만 생성
+  max_boxes = 4
+  num_boxes = min(len(contexts), max_boxes)
+  rag_boxes = container.columns(num_boxes)
+  for idx in range(num_boxes):
+    create_source_card(contexts[idx], rag_boxes[idx], show_pdf)
 
 
 def print_messages(messages_container, show_pdf):
