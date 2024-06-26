@@ -79,7 +79,9 @@ def init_css():
     /* 사이드바 텍스트 */
     color: white;
   }
-
+  [data-testid="stAlert"]{
+    display: none;
+  }
   [data-testid="stSidebarCollapseButton"]{
     color: white;
   }
