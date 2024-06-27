@@ -19,6 +19,9 @@ def init_css():
     border: 1px solid #b1b0bb;
     border-radius: 10px;
   }
+  [data-testid="stSidebar"]{
+    width: 300px;
+  }
   [data-testid="stSidebarContent"] h1{  
     /* 사이드바 타이틀 */
     font-family:  "Noto Sans KR", sans-serif;

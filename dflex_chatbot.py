@@ -68,9 +68,9 @@ def get_vector_store(select_collection_name="dacon11"):
 
 def get_source_dict():
   return {
-    "DSET_AI_01": "지식재산권", "DSET_AI_02": "표준화", "DSET_AI_03": "의료데이터",
+    "DSET_AI_01": "지식재산권", "DSET_AI_11":"표준화 2019","DSET_AI_02": "표준화 2023", "DSET_AI_03": "의료데이터",
     "DSET_AI_05": "데이터기반행정", "DSET_AI_06": "관리지침", "DSET_AI_07": "데이터 3법 개정안",
-    "DSET_AI_08": "자치법규", "DSET_AI_09": "ICT", "DSET_AI_10": "빅데이터",
+    "DSET_AI_08": "자치법규", "DSET_AI_09": "ICT", "DSET_AI_10": "빅데이터", "DSET_AI_12": "공공데이터 품질진단 2022", "DSET_AI_13": "공공데이터 품질진단 2023"
   }
 
 # Function to reset checkbox states
@@ -142,8 +142,6 @@ def update_pdf(page_number, code, source):
   st.session_state['current']['page'] = page_number
   st.session_state['current']['source'] = source
   st.session_state['current']['code'] = code
-
-
 
 chat_column, pdf_column = st.columns([5, 3])
 chain = get_chain()
